@@ -8,36 +8,46 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-class User
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['user:read', 'user:write', 'reservation:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, unique: true)]
     #[Assert\Email(message: "Invalid email format.")]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $email = null;
 
     #[ORM\Column(type: Types::TEXT, length: 255)]
+    #[Groups(['user:write'])]
     private ?string $password = null;
 
     #[ORM\Column(type: Types::ARRAY)]
+    #[Groups(['user:read', 'user:write'])]
     private array $roles = [];
 
     #[ORM\Column]
-    #[Assert\Regex(
-        pattern: "/^0[1-9][0-9]{8}$/",
-        message: "Invalid phone number format."
-    )]
+    // #[Assert\Regex(
+    //     pattern: "/^0[1-9](?:[0-9]{2}){4}$/",
+    //     message: "Invalid phone number format."
+    // )]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $phoneNumber = null;
 
     #[ORM\OneToMany(mappedBy: 'Relations', targetEntity: Reservation::class)]
+    #[Groups(['user:read'])]
     private Collection $Relations;
 
     public function __construct()
@@ -88,13 +98,13 @@ class User
 
     public function getRoles(): array
     {
-        return $this->roles;
+        $roles = $this->roles;
+        return array_unique($roles);
     }
 
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
@@ -134,5 +144,14 @@ class User
         }
 
         return $this;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    public function eraseCredentials(): void
+    {
     }
 }
